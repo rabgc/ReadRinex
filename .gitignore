@@ -1,0 +1,48 @@
+# Ignore log files
+*.log
+
+# Ignore compiled object files
+*.o
+
+# Ignore executables
+tests
+
+# Ignore data 
+data
+
+# Ignore backup files
+*.bak
+
+# Ignore macOS specific files
+.DS_Store
+
+# Ignore Windows specific files
+Thumbs.db
+
+# Ignore build directories
+/build/
+/dist/
+
+# Ignore temporary files
+*.tmp
+*.swp
+*.swo
+
+# Ignore CMake files
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+
+# Ignore IDE specific files
+.vscode/
+.idea/
+
+# Ignore Kalman.dSYM directory
+LinearSystem.dSYM/
+
+# Ignore TODO.md file
+TODO.md
+
+# Ignore Google Test build artifacts (if applicable)
+googletest/build/

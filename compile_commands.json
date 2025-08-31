@@ -1,0 +1,14 @@
+[
+{
+  "directory": "/Users/rab/Library/Mobile Documents/com~apple~CloudDocs/Code/cpp_projects/GNSS/ReadRinex/tests",
+  "command": "/Library/Developer/CommandLineTools/usr/bin/c++  -isystem /opt/homebrew/include  -arch arm64 -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX15.5.sdk -o CMakeFiles/ParseRinexTests.dir/ParseRinexTests.cpp.o -c \"/Users/rab/Library/Mobile Documents/com~apple~CloudDocs/Code/cpp_projects/GNSS/ReadRinex/tests/ParseRinexTests.cpp\"",
+  "file": "/Users/rab/Library/Mobile Documents/com~apple~CloudDocs/Code/cpp_projects/GNSS/ReadRinex/tests/ParseRinexTests.cpp",
+  "output": "tests/CMakeFiles/ParseRinexTests.dir/ParseRinexTests.cpp.o"
+},
+{
+  "directory": "/Users/rab/Library/Mobile Documents/com~apple~CloudDocs/Code/cpp_projects/GNSS/ReadRinex/tests",
+  "command": "/Library/Developer/CommandLineTools/usr/bin/c++  -isystem /opt/homebrew/include  -arch arm64 -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX15.5.sdk -o CMakeFiles/ParseRinexTests.dir/__/src/ParseRinex.cpp.o -c \"/Users/rab/Library/Mobile Documents/com~apple~CloudDocs/Code/cpp_projects/GNSS/ReadRinex/src/ParseRinex.cpp\"",
+  "file": "/Users/rab/Library/Mobile Documents/com~apple~CloudDocs/Code/cpp_projects/GNSS/ReadRinex/src/ParseRinex.cpp",
+  "output": "tests/CMakeFiles/ParseRinexTests.dir/__/src/ParseRinex.cpp.o"
+}
+]
