@@ -118,9 +118,6 @@ int parse_obs_type_count(const std::string& line);
 // TODO 
 // test and build the following 
 //
-bool parse_rinex_version(const std::string& line, bool& v3);
-
-bool parse_obs_type_header(const std::string& line, std::vector<std::string>& obs_types, int& obs_type_count, bool& v3);
 
 void extract_obs_types_multiline(std::ifstream& f, int expected_count, std::vector<std::string>& obs_types, bool is_rinex3);
 
