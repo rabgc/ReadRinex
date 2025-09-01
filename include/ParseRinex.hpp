@@ -11,16 +11,38 @@ namespace rinex {
 // The map key is the normalized satellite ID (e.g., "G01"), and the value is a pair
 // of doubles: (L1 measurement, L2 measurement).
 struct ObsEpoch {
+  int year = 0;
+  int month = 0;
+  int day = 0;
+  int hour = 0;
+  int minute = 0;
+  double second = 0.0;
+  int event_flag = 0;
+  int num_sv = 0;
   std::unordered_map<std::string, std::pair<double, double>> sat_L1L2;
 };
 
-// Organizes the RINEX observations, including RINEX version, the observations types,
+// organizes the RINEX observations, including RINEX version, the observations types,
 // and the collection of ObsEpochs.  
 struct RinexObs{
     bool is_v3=false;
     std::vector<std::string> obs_types; // as in header, e.g., L1C, L1P, L2W, etc.
     std::vector<ObsEpoch> epochs;
 };
+
+// Enum representing possible error codes returned by the RINEX parser.
+// Allows callers to distinguish between different failure scenarios
+// such as missing header fields, incompatible observation types, or file errors.
+enum class ParseRinexError {
+    Success,
+    FileNotFound,
+    MissingHeader,
+    InvalidObsTypeCount,
+    IncompatibleObsTypes,
+    NoEpochs
+};
+
+ParseRinexError parse_rinex_obs(const std::string& path, rinex::RinexObs& out);
 
 // The code currently parses only GPS for now
 bool is_gps_sat(const std::string &sv);
@@ -46,9 +68,6 @@ std::string normalize_sat_id(const std::string &sv);
 
 // True if the RINEX file is version 3
 bool is_rinex_v3(const std::string& line);
-
-// Parse the RINEX observation file and return true if successful 
-bool parse_rinex_obs(const std::string &path, RinexObs &out);
 
 // The observation type line should list the number of expected observation types 
 int parse_obs_type_count(const std::string& line);

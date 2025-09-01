@@ -109,49 +109,53 @@ inline int parse_obs_type_count(const std::string& line) {
 }
 
 bool parse_rinex_obs(const std::string &path, rinex::RinexObs &out) {
-
+  
+  // open the RINEX file for reading; return false if file canot be opened
   std::ifstream f(path);
-  if (!f) {
-    std::cerr << "Cannot open " << path << "\n";
-    return false;
-  }
-  std::string line;
+  if (!f) return false;
+  
 
-  // Header parsing state
-  bool version_found = false;
-  bool obs_type_line_found = false;
-  bool is_v3 = false;
-  std::string version_line;
-  std::string obs_type_line;
+  // initialize state
+  bool version_found = false, obs_type_line_found = false, eoh_found = false, is_v3 = false;
+  
+  std::string line;
+  std::string version_line, obs_type_line;
   std::vector<std::string> obs_types;
   int obs_type_count = 0;
 
-  // Header parsing loop
-  while (getline(f, line)) {
+  // loop over the file 
+  while (std::getline(f, line)) {
+    line = rinex::trim(line);
+    
     if (line.find("RINEX VERSION / TYPE") != std::string::npos) {
       version_found = true;
       version_line = line;
       is_v3 = rinex::is_rinex_v3(line);
     }
+
+    // rinex v3
     if (line.find("SYS / # / OBS TYPES") != std::string::npos) {
       obs_type_line_found = true;
       obs_type_line = line;
+
       char sys = line[0];
-      if (sys != 'G') continue; // Only GPS for now
+      if (sys != 'G') continue; // only GPS for now
+
       obs_type_count = rinex::parse_obs_type_count(line);
-      if (obs_type_count <= 0) {
-        std::cerr << "Error: Invalid observation type count (" << obs_type_count << ") in header.\n";
-        return false;
-      }
+      if (obs_type_count <= 0) return false;
+
+      // stor obsercations types available in fld (field) vector
       std::vector<std::string> fld = rinex::extract_obs_types_from_line(line, 7, 3, 4);
       for (const std::string& t_raw : fld) {
-        std::string t = rinex::trim(t_raw);
+        std::string t = rinex::trim(t_raw); // obs type 
         if (!t.empty()) obs_types.push_back(t);
-        if ((int)obs_types.size() == obs_type_count) break;
+        if ((int)obs_types.size() == obs_type_count) break; // exit for loop if match
       }
+      // if the number of listed types is less than the number of types reported in the file
+      //  try the next line
       while ((int)obs_types.size() < obs_type_count) {
-        std::string l2;
-        if (!getline(f, l2)) break;
+        std::string l2; // the next line
+        if (!std::getline(f, l2)) break;
         if (l2.find("SYS / # / OBS TYPES") == std::string::npos) break;
         auto fld2 = rinex::extract_obs_types_from_line(l2, 0, 3, 4);
         for (const std::string& t_raw : fld2) {
@@ -161,23 +165,25 @@ bool parse_rinex_obs(const std::string &path, rinex::RinexObs &out) {
         }
       }
     }
+
+    // rinex v2
     if (line.find("# / TYPES OF OBSERV") != std::string::npos) {
       obs_type_line_found = true;
       obs_type_line = line;
+
       obs_type_count = rinex::parse_obs_type_count(line);
-      if (obs_type_count <= 0) {
-        std::cerr << "Error: Invalid observation type count (" << obs_type_count << ") in header.\n";
-        return false;
-      }
+      if (obs_type_count <= 0) return false;
+
       std::vector<std::string> fld = rinex::extract_obs_types_from_line(line, 6, 2, 3);
       for (const std::string& t_raw : fld) {
         std::string t = rinex::trim(t_raw);
         if (!t.empty()) obs_types.push_back(t);
         if ((int)obs_types.size() == obs_type_count) break;
       }
+      // same as above. Check next line for more observations.
       while ((int)obs_types.size() < obs_type_count) {
-        std::string l2;
-        if (!getline(f, l2)) break;
+        std::string l2; // next line 
+        if (!std::getline(f, l2)) break;
         std::vector<std::string> fld2 = rinex::extract_obs_types_from_line(l2, 0, 2, 3);
         for (const std::string& t_raw : fld2) {
           std::string t = rinex::trim(t_raw);
@@ -186,57 +192,141 @@ bool parse_rinex_obs(const std::string &path, rinex::RinexObs &out) {
         }
       }
     }
+
+    // exit loop over header 
     if (line.find("END OF HEADER") != std::string::npos) {
+      eoh_found = true;
       break;
     }
-    // ...other header parsing...
   }
 
-  // validation
-  if ((is_v3 && obs_type_line.find("SYS / # / OBS TYPES") == std::string::npos) ||
-      (!is_v3 && obs_type_line.find("# / TYPES OF OBSERV") == std::string::npos)) {
-    std::cerr << "Error: Version and obs type line format disagree.\n";
-    return false;
-  }
-  if (!version_found || !obs_type_line_found) {
-    std::cerr << "Error: Missing version or obs type line in header.\n";
-    return false;
-  }
-  if (obs_type_count <= 0) {
-    std::cerr << "Error: Obs type count is zero or negative.\n";
-    return false;
-  }
-  if ((int)obs_types.size() == 0) {
-    std::cerr << "Error: No obs types parsed from header.\n";
-    return false;
-  }
-  if (obs_type_count != (int)obs_types.size()) {
-    std::cerr << "Error: Obs type count mismatch.\n";
-    return false;
-  }
-  if (!is_v3 && obs_type_line.find("# / TYPES OF OBSERV") != std::string::npos) {
-    for (const auto& t : obs_types) {
-      if (t.size() >= 3 && (t.back() == 'C' || t.back() == 'W' || t.back() == 'P' || t.back() == 'S' || t.back() == 'X')) {
-        std::cerr << "Error: RINEX2 header contains RINEX3-style obs type '" << t << "'.\n";
-        return false;
-      }
-    }
-  }
-  if (is_v3 && obs_type_line.find("SYS / # / OBS TYPES") != std::string::npos) {
-    for (const auto& t : obs_types) {
-      if (t == "C1" || t == "L1" || t == "S1" || t == "C2" || t == "L2" || t == "S2") {
-        std::cerr << "Error: RINEX3 header contains RINEX2-style obs type '" << t << "'.\n";
-        return false;
-      }
-    }
-  }
-
+  // if there were any problems parsing the header return false 
+  if (!eoh_found || 
+      !version_found || 
+      !obs_type_line_found || 
+       obs_type_count <= 0 || 
+       obs_types.size() != (size_t)obs_type_count
+      ) return false;
   out.is_v3 = is_v3;
   out.obs_types = obs_types;
 
-  // ...parse data section...
+  // now parse epochs and observations
+  ObsEpoch current_epoch;
+  std::vector<std::string> sv_ids;
+  
+  // initialize the state 
+  int svs_remaining = 0, obs_lines_remaining = 0;
+  bool in_epoch = false;
 
+  // loop over the remaning lines in the file
+  while (std::getline(f, line)) {
+    line = rinex::trim(line);
+    if (line.empty()) continue;
+
+    // rinex v3
+    if (is_v3) {
+
+      // if current line is an epoch header line 
+      if (line[0] == '>') { 
+        std::istringstream iss(line.substr(1));
+        int year, month, day, hour, minute, event_flag, num_sv;
+        double second;
+        iss >> year >> month >> day >> hour >> minute >> second >> event_flag >> num_sv;
+        if (iss.fail()) continue;
+
+        // these current epoch data are only set if the epoch header was successfully parsed
+        current_epoch = ObsEpoch{};
+        current_epoch.year = year;
+        current_epoch.month = month;
+        current_epoch.day = day;
+        current_epoch.hour = hour;
+        current_epoch.minute = minute;
+        current_epoch.second = second;
+        current_epoch.event_flag = event_flag;
+        current_epoch.num_sv = num_sv;
+        svs_remaining = num_sv;
+        in_epoch = true;
+        continue;
+      }
+      if (in_epoch && svs_remaining > 0) { // if epoch header parsing fails svs_remaining=0
+        std::istringstream sat_iss(line);
+
+        std::string sv_id;
+        sat_iss >> sv_id; // read the sv id, which is the first space delimited token
+        sv_id = rinex::normalize_sat_id(sv_id); // impose rinex v3 naming convention 
+
+        std::vector<double> obs_values;
+        for (size_t j = 0; j < out.obs_types.size(); ++j) {
+          double val = 0.0;
+          sat_iss >> val;
+          obs_values.push_back(val);
+        }
+        double l1 = obs_values.size() > 0 ? obs_values[0] : 0.0; // L1
+        double l2 = obs_values.size() > 1 ? obs_values[1] : 0.0; // L2
+        current_epoch.sat_L1L2[sv_id] = std::make_pair(l1, l2);
+
+        svs_remaining--;
+        if (svs_remaining == 0) {
+          out.epochs.push_back(current_epoch);
+          in_epoch = false;
+        }
+        continue;
+      }
+    } else {
+      
+      // rinex v2 
+      int year, month, day, hour, minute, num_sv;
+      double second;
+      int event_flag = 0;
+
+      std::istringstream iss(line);
+      if (iss >> year >> month >> day >> hour >> minute >> second >> event_flag >> num_sv) {
+        current_epoch = ObsEpoch{};
+        current_epoch.year = year;
+        current_epoch.month = month;
+        current_epoch.day = day;
+        current_epoch.hour = hour;
+        current_epoch.minute = minute;
+        current_epoch.second = second;
+        current_epoch.num_sv = num_sv;
+        current_epoch.event_flag = event_flag;
+        sv_ids.clear();
+        std::string token;
+        while (iss >> token) sv_ids.push_back(token);
+        while ((int)sv_ids.size() < num_sv) {
+          if (!std::getline(f, line)) break;
+          line = rinex::trim(line);
+          std::istringstream sv_iss(line);
+          while (sv_iss >> token) sv_ids.push_back(token);
+        }
+        obs_lines_remaining = num_sv;
+        in_epoch = true;
+        continue;
+      }
+      if (in_epoch && obs_lines_remaining > 0) { // if epoch header parsing fails svs_remaining=0
+        std::istringstream sat_iss(line);
+        std::vector<double> obs_values;
+        for (size_t j = 0; j < out.obs_types.size(); ++j) {
+          double val = 0.0;
+          sat_iss >> val;
+          obs_values.push_back(val);
+        }
+        double l1 = obs_values.size() > 0 ? obs_values[0] : 0.0; // L1
+        double l2 = obs_values.size() > 1 ? obs_values[1] : 0.0; // L2
+
+        std::string sv_id = rinex::normalize_sat_id(sv_ids[sv_ids.size() - obs_lines_remaining]);
+        current_epoch.sat_L1L2[sv_id] = std::make_pair(l1, l2);
+        
+        obs_lines_remaining--;
+        if (obs_lines_remaining == 0) {
+          out.epochs.push_back(current_epoch);
+          in_epoch = false;
+        }
+        continue;
+      }
+    }
+  }
+  if (out.epochs.empty()) return false;
   return true;
 }
-
-} // end namespace rinex 
+} // end namespace rinex
